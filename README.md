@@ -2,6 +2,10 @@
 
 A real Linux on my phone. Fedora 44 on a Galaxy S26 Ultra, on top of Android. No root, bootloader still locked, phone is completely stock. I don't really use it myself, I built it so an AI agent would have a proper Linux to sit in.
 
+<p align="center">
+  <img src="docs/screenshots/fedora-fastfetch.png" width="720" alt="fastfetch inside the Fedora proot on the phone">
+</p>
+
 Setup is in [docs/setup.md](docs/setup.md), about 20 minutes, and I ran every step of it on this phone. The AI side is in [docs/ai-layer.md](docs/ai-layer.md), including the parts that broke. There are two scripts in [scripts/](scripts), one that does the inside-the-container setup for you and one little bridge thing the agent needs. The app that gives the agent hands is its own repo, [the-body](https://github.com/beqa-beridze/the-body).
 
 Start here, then go there.
@@ -35,6 +39,10 @@ Because using it as a human on a phone is a pain in the ass. The on-screen keybo
 
 So I turned it around. It isn't usable for a human on a phone, so the best thing to run on it is a CLI AI tool. I use Claude Code. Inside the proot it gets a real shell and real files and the phone's network. With [the-body](https://github.com/beqa-beridze/the-body) it gets the phone itself, so it can read the screen, tap things, answer a notification, and ping me with a yes or no question when it's stuck.
 
+<p align="center">
+  <img src="docs/screenshots/claude-code-on-phone.png" width="760" alt="Claude Code starting up inside the Fedora proot on the phone">
+</p>
+
 One tap on a home screen widget opens Claude Code inside the Fedora. Or it just runs on a timer with nobody touching it at all. For a couple of months that ran a companion agent that woke up every fifteen minutes and dealt with whatever had happened. That one isn't public and won't be, it knows way too much about my life, but how it was wired up is in [docs/ai-layer.md](docs/ai-layer.md).
 
 ## The AI part
@@ -55,6 +63,10 @@ Same thing as Bero-OS but from the other end. With Bero-OS I'm building the mach
 | Fedora 44 aarch64 | the actual OS. zsh, starship, dnf, node, JDK, python, the lot |
 | Claude Code 2.1 | the agent, installed normally, run with permissions off |
 | [the-body](https://github.com/beqa-beridze/the-body) | Android app. Eyes, hands and a mouth over a loopback HTTP API |
+
+<p align="center">
+  <img src="docs/screenshots/termux-fastfetch.png" width="620" alt="the Termux side: Android 16 and the phone's real kernel">
+</p>
 
 I call the Fedora layer spirit and the app the body. There was a sky layer too which was just the Termux prompt. The names are Avatar, I'm not being deep about it.
 
