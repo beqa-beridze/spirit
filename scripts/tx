@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# tx - run a command over in Termux, from inside the proot container.
+#
+# Why this exists: a termux-* command run directly from inside the container returns
+# success, prints nothing, does nothing, and throws a "Termux:API Error" toast on the
+# phone's real screen. Every time. Termux's API commands only work in Termux proper.
+#
+#   tx termux-battery-status
+#   tx termux-notification --title hi --content there
+#   tx 'am start -a android.intent.action.VIEW -d https://example.com'
+#
+# One time setup. Inside the container:
+#   ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519
+#   cat ~/.ssh/id_ed25519.pub
+# then in Termux, paste that line into authorized_keys:
+#   mkdir -p ~/.ssh && chmod 700 ~/.ssh
+#   echo 'ssh-ed25519 AAAA... root@localhost' >> ~/.ssh/authorized_keys
+#   sshd
+#
+# The real one on my phone also has a Unix socket transport, because sshd gets killed
+# every few days and two ways in is better than one. This is the half that matters.
+set -euo pipefail
+[ $# -gt 0 ] || { echo "usage: tx <command> [args...]" >&2; exit 64; }
+exec ssh -q -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+     -p "${TX_PORT:-8022}" 127.0.0.1 "$@"
