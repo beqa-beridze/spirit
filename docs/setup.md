@@ -25,7 +25,7 @@ Now the Android side, and don't skip this, it's what decides whether any of it s
 
 - Settings, Apps, Termux, Battery, set it to **Unrestricted**. Do the same for Termux:Boot and Termux:API.
 - Samsung only: Settings, Security and privacy, **Auto Blocker off**. It blocks sideloaded apps from a lot of what they need.
-- In `~/.termux/termux.properties` set `allow-external-apps=true`, then run `termux-reload-settings`. The home screen widgets in step 5 need it, and so does the body app later if you get that far.
+- In `~/.termux/termux.properties` set `allow-external-apps=true`, then run `termux-reload-settings`. The home screen widgets in step 5 need it.
 
 ## 2. Fedora under proot
 
@@ -36,7 +36,7 @@ proot-distro login fedora       # you are now root in a Fedora
 
 That's the whole install. If you read an older guide you'll get confused by `proot-distro list`. In 5.x it shows what you've already installed. I kept waiting for a list of available distros and there just isn't one any more, it installs from container images instead, so `proot-distro install ubuntu:24.04` or `debian` or `alpine` all work the same way. `-n somename` gives the container a different name if you want two of them.
 
-First things once you're inside. Either run the script from this repo, which does the rest of this step and the whole of step 3 for you:
+First things once you're inside. Either run the script from this repo, which does the rest of this step, the whole of step 3, and the zsh and starship bits of step 7 for you:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/beqa-beridze/spirit/main/scripts/fedora-setup.sh | bash
@@ -45,7 +45,7 @@ curl -fsSL https://raw.githubusercontent.com/beqa-beridze/spirit/main/scripts/fe
 or do it by hand and read the rest of this section:
 
 ```sh
-dnf -y install zsh tmux git curl python3 nodejs npm fastfetch openssh-clients
+dnf -y install zsh tmux git curl python3 nodejs npm fastfetch openssh-clients unzip
 ```
 
 That took 1 minute 37 on this phone. Type `exit` to drop back to Termux, and `proot-distro login fedora` to go back in. The state persists, it's just a directory.
@@ -71,7 +71,7 @@ claude
 
 58 seconds on this phone. The first run wants you to log in and prints a URL. There's no browser inside the proot, so copy the URL, open it on the phone, and paste the code back into the terminal. After that `claude` works from anywhere in the Fedora.
 
-I run it with permission checks off, because the container is already the sandbox. It can't reach the Android system, and worst case it trashes a Fedora I can pull down again in one command. That's fine for something I can throw away. Do whatever you want on yours.
+I run it with `claude --dangerously-skip-permissions`, because the container is already the sandbox. It can't reach the Android system, and worst case it trashes a Fedora I can pull down again in one command. That's fine for something I can throw away. Do whatever you want on yours. It matters more than it sounds if you go on to run it on a timer, which is [ai-layer.md](ai-layer.md): with `-p` there's nobody there to click allow, so without the flag the agent gets denied and goes quiet instead.
 
 Check it worked: `claude --version`.
 
@@ -107,6 +107,18 @@ chmod +x ~/.termux/boot/sshd.sh
 
 `termux-wake-lock` stops the CPU sleeping while Termux is up. You get a permanent notification stuck in the tray for it, whatever.
 
+While sshd is up, put the bridge in place too. Termux's own `termux-*` commands do nothing from inside the container, so anything that needs the phone itself, battery level, notifications, opening a URL, has to hop back out. That's what `tx` is:
+
+```sh
+# inside Fedora. the setup script in step 2 already put tx in place, this is the by-hand version
+curl -fsSL https://raw.githubusercontent.com/beqa-beridze/spirit/main/scripts/tx -o /usr/local/bin/tx
+chmod +x /usr/local/bin/tx
+
+ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519   # then add the .pub to Termux's authorized_keys
+```
+
+Test it with `tx termux-battery-status`. If that prints JSON you're set. The key setup is written out at the top of [scripts/tx](../scripts/tx) as well.
+
 ## 5. One tap to Claude
 
 Termux:Widget turns every executable in `~/.shortcuts` into a home screen button:
@@ -138,8 +150,8 @@ This is the part that took months and still isn't perfect.
    adb shell "settings put global settings_enable_monitor_phantom_procs false"
    ```
    Wireless debugging turns itself off on every reboot, which is fine, because you only needed it for that one line. Don't build anything that depends on adb staying up.
-4. sshd will still die every few days when Android's memory killer decides Termux is using too much. A scheduled job that restarts it if it isn't running is the fix. That's in [ai-layer.md](ai-layer.md).
-5. Use tmux for anything long. A Termux session dies with the app. tmux inside the proot keeps going until something kills the whole tree.
+3. sshd will still die every few days when Android's memory killer decides Termux is using too much. A scheduled job that checks and restarts it is the fix, and it's the same job as the agent tick, so it's written out in [ai-layer.md](ai-layer.md).
+4. Use tmux for anything long. A Termux session dies with the app. tmux inside the proot keeps going until something kills the whole tree.
 
 ## 7. Making it yours
 

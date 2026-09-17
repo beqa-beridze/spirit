@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # tx - run a command over in Termux, from inside the proot container.
 #
-# Why this exists: a termux-* command run directly from inside the container returns
-# success, prints nothing, does nothing, and throws a "Termux:API Error" toast on the
-# phone's real screen. Every time. Termux's API commands only work in Termux proper.
+# Termux's API commands only work in Termux proper. Run one from inside the container
+# and it exits 0 having done nothing at all, so this hops back out over ssh and runs it
+# where it works.
 #
 #   tx termux-battery-status
 #   tx termux-notification --title hi --content there

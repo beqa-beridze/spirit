@@ -5,10 +5,13 @@
 #   proot-distro login fedora
 #   curl -fsSL https://raw.githubusercontent.com/beqa-beridze/spirit/main/scripts/fedora-setup.sh | bash
 #
-# It installs the base tools, starship, and Claude Code, and writes the prompt config.
+# It installs the base tools, starship, Claude Code and the tx bridge, and writes the
+# prompt config.
 # It does not log Claude in, that part needs a browser and you do it yourself afterwards.
 # Safe to re-run: every step checks first.
 set -euo pipefail
+
+TX_URL="${TX_URL:-https://raw.githubusercontent.com/beqa-beridze/spirit/main/scripts/tx}"
 
 say() { printf '\n== %s\n' "$*"; }
 
@@ -67,8 +70,22 @@ export PATH="$HOME/.local/bin:$PATH"
 eval "$(starship init zsh)"
 RC
 
+# The Termux bridge. termux-* commands do nothing from inside here, so tx runs them
+# back over in Termux. Needs sshd up in Termux and a key, see step 4 of docs/setup.md.
+if [ ! -x /usr/local/bin/tx ]; then
+  say "tx bridge"
+  if curl -fsSL "$TX_URL" -o /usr/local/bin/tx.tmp 2>/dev/null; then
+    chmod +x /usr/local/bin/tx.tmp && mv /usr/local/bin/tx.tmp /usr/local/bin/tx
+  else
+    rm -f /usr/local/bin/tx.tmp
+    echo "  couldn't fetch tx, grab it from the repo by hand"
+  fi
+fi
+
 say "done"
 echo "claude:   $("$HOME/.local/bin/claude" --version 2>/dev/null || echo 'not installed')"
 echo "starship: $(starship --version 2>/dev/null | head -1 || echo 'not installed')"
+echo "tx:       $([ -x /usr/local/bin/tx ] && echo installed || echo 'not installed')"
 echo
 echo "Next: run 'claude', open the URL it prints on the phone, paste the code back."
+echo "Then set up the tx key: ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519"

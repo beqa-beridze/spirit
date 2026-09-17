@@ -8,7 +8,7 @@ Installed with the normal installer, nothing clever. Inside the proot it gets ba
 
 I start it through a small wrapper that just sets up the environment. PATH gets the Fedora directories first and Termux's `bin` at the end, so the agent calls Fedora tools normally but can still reach a Termux-only one when it has to. There's a `CLAUDE.md` in the home directory telling it where it is, what it can't reach from in there, and the rule further down this page.
 
-It runs with permission checks off. The container is the sandbox already, so I'm not sitting there clicking allow on every file write.
+It runs with permissions off, same reasoning as in the setup guide.
 
 ## Two namespaces, one phone
 
@@ -20,7 +20,7 @@ Once the agent learned to type `tx termux-battery-status` that just stopped bein
 
 ## Headless, when nobody's looking
 
-`claude -p "..."` runs one prompt, prints the answer, exits. That's the whole trick. Stick it in a script and schedule the script, and there's no terminal open anywhere.
+`claude -p "..."` runs one prompt, prints the answer, exits. That's all there is to it. Stick it in a script and schedule the script, and there's no terminal open anywhere.
 
 Scheduling is `termux-job-scheduler`, which is Android's own JobScheduler handed to the shell:
 
@@ -34,6 +34,9 @@ The tick script is deliberately dumb. Mine is longer but this is the shape, and 
 ```sh
 #!/data/data/com.termux/files/usr/bin/bash
 # ~/tick.sh - every 15 minutes, decide whether anything deserves a model call
+termux-wake-lock
+pgrep -x sshd >/dev/null || sshd      # the memory killer eats it every few days
+
 TOK=$(cat ~/.config/body/bridge_token)
 SEEN=$(cat ~/.tick-highwater 2>/dev/null || echo 0)
 # newest post_time in the tray, and how many landed since the last tick
@@ -53,7 +56,7 @@ proot-distro login fedora -- /root/.local/bin/claude -p \
 echo "$(date -Iseconds) fired new=$NEW" >> ~/tick-fires.log
 ```
 
-Log every fire. When the job silently stops firing, and it will, that log is the only way you find out.
+Log every fire. When the job silently stops, that log is how you find out.
 
 ## What ran on it
 
@@ -69,7 +72,7 @@ I tried the Hermes agent framework for a while too and the body still ships a pl
 
 So the body does it properly, as a normal Android app. An accessibility service turns the live screen into a list of elements, each with a number on it. There's a notification listener too. Everything comes out of a small HTTP server on `127.0.0.1:8765`, loopback only, token required, so the agent runs `body screen` and gets back something it can actually reason about.
 
-What it's taught is to look at the screen, use an id from that same look, and check again afterwards, and to give up when the app says nothing moved. The ids look like `7-14` and the 7 is which read they came from, which is the whole point of them. Anything with an effect outside the phone, sending a text or answering a message, takes a two step confirmation that ties a token to the exact recipient and the exact text. It can't send something it didn't show me first.
+What it's taught is to look at the screen, use an id from that same look, and check again afterwards, and to give up when the app says nothing moved. Ids carry the read they came from, so a stale one gets refused instead of guessed at. Anything with an effect outside the phone, sending a text or answering a message, takes a two step confirmation that ties a token to the exact recipient and the exact text. It can't send something it didn't show me first.
 
 The whole app gets built on the phone, in the proot, with no Android Studio anywhere near it. That story is in its own README.
 
@@ -87,16 +90,10 @@ That came out of a proper failure. For weeks the asking went through Termux:API'
 
 Useful part if you're building something like this.
 
-**sshd disappears.** The low memory killer takes Termux out every few days and sshd goes with it. One time nothing noticed for eleven days, which is also how I found out my one escape hatch had no backup. A fifteen minute job checks and restarts it now.
+The low memory killer takes Termux out every few days and sshd goes with it. That one I knew about. What I didn't know is that nothing was watching, and one time it stayed down for eleven days before I noticed. My one way in had no backup and I found that out by losing it.
 
-The scheduled job itself silently stopped firing for over a week once, even though it was registered as persisted. Persisted apparently doesn't mean persisted. Same fix as above, it re-registers on every boot and logs every fire so I can see when it goes quiet.
+Then the scheduled job that was supposed to catch that stopped firing for over a week, while still showing up as registered and persisted. Persisted apparently doesn't mean persisted. It re-registers on every boot now and writes a line every time it runs, which is the only reason I'd catch it a second time.
 
-**Boot means first unlock.** Termux:Boot only runs after the first unlock following a reboot. Reboot at 3am and nothing happens until morning.
+adb over loopback dies on every reboot and no app can bring it back on its own. Everything that shelled out to `adb` got rewritten to go through the body instead. adb is a one-time setup step now and nothing depends on it staying up.
 
-adb over loopback dies every reboot and there's no way for an app to bring it back by itself. Everything that used `adb shell` got rewritten to go through the body instead. adb is one-time setup now and nothing else.
-
-The phantom process killer. More than 32 child processes and Android kills you. One adb setting, once.
-
-The Termux:API notification channel is mute by construction, as above.
-
-**Stale ids.** The screen read was never the hard part. Acting on an element id from a read that had already gone stale is how it tapped the wrong thing, so ids now carry the generation of the read they came from, and if the generation is old the app refuses instead of guessing.
+Stale ids were the subtle one. Reading the screen was never hard. Acting on an id from a read that had already gone stale is how it ended up tapping the wrong thing, so ids now carry the generation they came from and the app refuses an old one rather than guessing.
